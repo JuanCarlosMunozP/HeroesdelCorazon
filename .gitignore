@@ -1,8 +1,4 @@
 back/db/
 back/main.js
-back/node_modules/
-back/package.json
-back/package-lock.json
-back/.gitignore
 
 front/
