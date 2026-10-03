@@ -1,2 +1,10 @@
-back/
+back/db/
+back/.env
+back/main.js
+back/.env.example
+back/node_modules/
+back/package.json
+back/package-lock.json
+back/.gitignore
+
 front/
