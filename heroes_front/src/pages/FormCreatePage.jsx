@@ -309,7 +309,7 @@ function EvaluationsManager({ evaluations, selected, onSelect, onChanged, onErro
         <Modal title="Editar evaluación" onClose={() => { setEditing(null); setEditName(''); setEditCategories([]) }}>
           {editLoading ? <p className="text-sm text-app-muted">Cargando evaluación...</p> : (
             <form className="grid gap-4" onSubmit={saveEdit}>
-              <p className="text-sm text-app-muted">Edita el nombre, las categorías y sus preguntas. Cada pregunta se califica de 1 a 5.</p>
+              <p className="text-sm text-app-muted">Edita el nombre, las categorías y sus preguntas. El tipo de calificación se configura en «Programar evaluación».</p>
               <label className="grid gap-1.5 text-sm font-medium text-app">
                 Nombre de la evaluación
                 <input autoFocus className={CELL_INPUT} value={editName} onChange={(e) => setEditName(e.target.value)} />

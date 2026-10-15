@@ -123,14 +123,24 @@ function EvaluationSearch({ evaluations, value, onChange }) {
 export function FormProgramPage() {
   const [evaluations, setEvaluations] = useState(null)
   const [selected, setSelected] = useState('')
+  const [ratingType, setRatingType] = useState('quantitative')
+  const [savedRatingType, setSavedRatingType] = useState('quantitative')
   const [value, setValue] = useState('')
   const [saved, setSaved] = useState(null)
   const [message, setMessage] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [ratingBusy, setRatingBusy] = useState(false)
 
   const chosen = evaluations?.find((evaluation) => String(evaluation.id) === selected)
+  const validLimit = /^\d+$/.test(value) && Number.isInteger(Number(value)) && Number(value) >= 1 && Number(value) <= 30
+
+  useEffect(() => {
+    const current = chosen?.rating_type ?? 'quantitative'
+    setRatingType(current)
+    setSavedRatingType(current)
+  }, [selected, chosen?.rating_type])
 
   useEffect(() => {
     api(EVALUATIONS)
@@ -163,7 +173,10 @@ export function FormProgramPage() {
 
   async function submit(event) {
     event.preventDefault()
-    if (!selected) return
+    if (!selected || !validLimit) {
+      setError('Ingresa un número entero de usuarios entre 1 y 30.')
+      return
+    }
     setError(null)
     setMessage(null)
     setBusy(true)
@@ -181,6 +194,26 @@ export function FormProgramPage() {
     }
   }
 
+  async function saveRatingType() {
+    if (!chosen) return
+    setError(null)
+    setMessage(null)
+    setRatingBusy(true)
+    try {
+      const updated = await api(`${EVALUATIONS}${chosen.id}/`, {
+        method: 'PATCH',
+        body: { rating_type: ratingType },
+      })
+      setEvaluations((current) => current.map((evaluation) => evaluation.id === updated.id ? updated : evaluation))
+      setSavedRatingType(updated.rating_type)
+      setMessage(`Tipo de calificación actualizado para «${updated.name}».`)
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setRatingBusy(false)
+    }
+  }
+
   return (
     <Card className="max-w-lg">
       <form onSubmit={submit} className="space-y-4">
@@ -188,15 +221,27 @@ export function FormProgramPage() {
         {evaluations?.length > 0 && <EvaluationSearch evaluations={evaluations} value={selected} onChange={setSelected} />}
         {evaluations?.length === 0 && <p className="text-sm text-app-muted">Primero crea una evaluación para configurar su límite.</p>}
         {chosen && (
-          <div className="flex items-end gap-3">
-            <label className={`${LABEL} w-32`}>
-              Usuarios por mes
-              <input className={FIELD} type="number" min="1" max="30" step="1" value={value} onChange={(e) => setValue(e.target.value)} required />
+          <>
+            <label className="grid gap-1.5">
+              <span className={LABEL}>Tipo de calificación</span>
+              <select className={FIELD} value={ratingType} onChange={(e) => setRatingType(e.target.value)}>
+                <option value="quantitative">Cuantitativa: de 1 a 5</option>
+                <option value="descriptive">Descriptiva: Malo, Regular, Bueno, Muy bueno, Excelente</option>
+              </select>
             </label>
-            <Button type="submit" disabled={loading || busy || value === '' || Number(value) === saved}>
-              {busy ? 'Guardando...' : 'Guardar límite'}
+            <Button type="button" variant="secondary" disabled={ratingBusy || loading || ratingType === savedRatingType} onClick={saveRatingType}>
+              {ratingBusy ? 'Guardando...' : 'Guardar tipo de calificación'}
             </Button>
-          </div>
+            <div className="flex items-end gap-3 border-t border-app pt-4">
+              <label className={`${LABEL} w-32`}>
+                Usuarios por mes
+                <input className={FIELD} type="number" min="1" max="30" step="1" value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => ['-', '+', '.', 'e', 'E'].includes(e.key) && e.preventDefault()} required />
+              </label>
+              <Button type="submit" disabled={loading || busy || !validLimit || Number(value) === saved}>
+                {busy ? 'Guardando...' : 'Guardar límite'}
+              </Button>
+            </div>
+          </>
         )}
         {error && <div role="alert" className={ALERT_ERROR}>{error}</div>}
         {message && <div className={ALERT_OK}>{message}</div>}

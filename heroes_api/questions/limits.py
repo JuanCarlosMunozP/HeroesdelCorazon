@@ -5,9 +5,10 @@ from .models import Evaluation, EvaluationSetting, Question
 
 def monthly_limit(evaluation=None):
     """How many colleagues a collaborator can score per month in this evaluation."""
-    if evaluation is not None and evaluation.monthly_limit is not None:
-        return min(evaluation.monthly_limit, EvaluationSetting.MAX_MONTHLY_LIMIT)
-    return min(EvaluationSetting.current().monthly_limit, EvaluationSetting.MAX_MONTHLY_LIMIT)
+    if evaluation is not None:
+        value = evaluation.monthly_limit if evaluation.monthly_limit is not None else EvaluationSetting.DEFAULT_MONTHLY_LIMIT
+        return max(1, min(value, EvaluationSetting.MAX_MONTHLY_LIMIT))
+    return max(1, min(EvaluationSetting.current().monthly_limit, EvaluationSetting.MAX_MONTHLY_LIMIT))
 
 
 def month_start():

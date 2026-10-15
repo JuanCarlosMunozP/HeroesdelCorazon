@@ -30,7 +30,8 @@ function EvaluationForm({ evaluation, onBack }) {
   }, [q])
 
   // Cupo mensual: lo define el jefe; los ya calificados este mes no se pueden repetir.
-  const max = quota ? quota.limit - quota.used : 0
+  const max = quota ? Math.max(0, quota.limit - quota.used) : 0
+  const pending = quota ? Math.max(0, max - selected.length) : 0
   const available = quota ? people.filter((p) => !quota.personal.includes(p.id)) : []
 
   const criteria = categories.flatMap((c) => c.criteria)
@@ -83,7 +84,9 @@ function EvaluationForm({ evaluation, onBack }) {
         {evaluation.closes_on && <p className={PAGE_SUBTITLE}>Puedes responder hasta el {formatDay(evaluation.closes_on)}.</p>}
       </div>
       <p className="text-sm text-app-muted">
-        Elige {max || quota?.limit} compañeros de tu área  y marca con una X la nota de 1 a 5 de cada criterio en la cual cada valor representa el nivel de cumplimiento o desempeño observado. El valor 5 corresponde al nivel más alto de valoración y el valor 1 al nivel más bajo.
+        {evaluation.rating_type === 'descriptive'
+          ? `Elige ${quota ? max : 0} compañeros de tu área y marca con una X la opción que mejor describa cada criterio: Malo, Regular, Bueno, Muy bueno o Excelente.`
+          : `Elige ${quota ? max : 0} compañeros de tu área y marca con una X la nota de 1 a 5 de cada criterio. Cada valor representa el nivel de cumplimiento o desempeño observado: 1 es el nivel más bajo y 5, el más alto.`}
       </p>
 
       <form onSubmit={onSubmit} className="space-y-4">
@@ -91,8 +94,9 @@ function EvaluationForm({ evaluation, onBack }) {
         {saved && <div className={ALERT_OK}>Evaluaciones enviadas al jefe de área.</div>}
 
         <Card>
-          <h3 className="text-base font-semibold text-app">Usuarios a evaluar ({selected.length}/{max})</h3>
-          {quota && max === 0 && <p className="mt-2 text-sm text-app-muted">Ya enviaste tus {quota.limit} {quota.limit === 1 ? 'evaluación' : 'evaluaciones'} de este mes. Podrás volver a evaluar el próximo mes.</p>}
+          <h3 className="text-base font-semibold text-app">Usuarios a evaluar ({selected.length} seleccionados)</h3>
+          {quota && <p className="mt-1 text-sm text-app-muted">Pendientes por evaluar este mes: {pending} de {quota.limit}. Ya evaluaste {quota.used}.</p>}
+          {quota && max === 0 && <p className="mt-2 text-sm text-app-muted">Ya alcanzaste el límite de {quota.limit} {quota.limit === 1 ? 'evaluación' : 'evaluaciones'} de este mes. Podrás volver a evaluar el próximo mes.</p>}
           {quota && max > 0 && available.length === 0 && <p className="mt-2 text-sm text-app-muted">No hay usuarios disponibles para evaluar.</p>}
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {(max > 0 ? available : []).map((p) => {
@@ -130,6 +134,7 @@ function EvaluationForm({ evaluation, onBack }) {
               <ScoreTable
                 name={`person-${personId}`}
                 categories={categories}
+                ratingType={evaluation.rating_type}
                 scores={Object.fromEntries(criteria.map((c) => [c.code, scores[key(personId, c.code)]]))}
                 onChange={(code, n) => setScores((s) => ({ ...s, [key(personId, code)]: n }))}
               />
@@ -138,7 +143,7 @@ function EvaluationForm({ evaluation, onBack }) {
         })}
 
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-app-muted">Seleccionados {selected.length}/{max}</span>
+          <span className="text-sm text-app-muted">Seleccionados {selected.length} · pendientes por evaluar {pending}</span>
           <Button type="submit" disabled={saving || !ready}>
             {saving ? 'Enviando...' : 'Enviar al jefe'}
           </Button>

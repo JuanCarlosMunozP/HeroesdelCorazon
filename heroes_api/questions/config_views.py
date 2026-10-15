@@ -64,6 +64,7 @@ def _evaluation_data(evaluation):
     return {
         "id": evaluation.pk,
         "name": evaluation.name,
+        "rating_type": evaluation.rating_type,
         "is_open": evaluation.is_open,
         "closes_on": evaluation.closes_on.isoformat() if evaluation.closes_on else None,
         "status": evaluation.status,
@@ -92,6 +93,9 @@ def _apply_changes(obj, data):
         name = _clean(data["name"])
         if not name:
             return _bad("name", _("Enter a name."))
+        rating_type = request.data.get("rating_type", Evaluation.RatingType.QUANTITATIVE)
+        if rating_type not in Evaluation.RatingType.values:
+            return _bad("rating_type", _("Choose quantitative or descriptive ratings."))
         obj.name = name
     if "is_active" in data:
         obj.is_active = bool(data["is_active"])
@@ -134,7 +138,7 @@ class EvaluationsView(APIView):
                 return _bad("categories", _("Each category needs a name and at least one question."))
             cleaned.append((category_name, questions))
 
-        evaluation = Evaluation.objects.create(name=name)  # closes at the end of this month, automatically
+        evaluation = Evaluation.objects.create(name=name, rating_type=rating_type)  # closes at the end of this month, automatically
         for category_name, questions in cleaned:
             category = Category.objects.create(
                 evaluation=evaluation,
@@ -166,6 +170,11 @@ class EvaluationDetailView(APIView):
             if not name:
                 return _bad("name", _("Enter a name."))
             evaluation.name = name
+        if "rating_type" in request.data:
+            rating_type = request.data["rating_type"]
+            if rating_type not in Evaluation.RatingType.values:
+                return _bad("rating_type", _("Choose quantitative or descriptive ratings."))
+            evaluation.rating_type = rating_type
         if "is_open" in request.data:
             evaluation.is_open = bool(request.data["is_open"])
         evaluation.save()

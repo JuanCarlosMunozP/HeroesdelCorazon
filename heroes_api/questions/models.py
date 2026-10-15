@@ -27,7 +27,12 @@ class Evaluation(models.Model):
     The closing day is set automatically when it is created: the last day of that month.
     """
 
+    class RatingType(models.TextChoices):
+        QUANTITATIVE = "quantitative", _("Quantitative")
+        DESCRIPTIVE = "descriptive", _("Descriptive")
+
     name = models.CharField(_("Name"), max_length=150)
+    rating_type = models.CharField(_("Rating type"), max_length=20, choices=RatingType.choices, default=RatingType.QUANTITATIVE)
     is_open = models.BooleanField(_("Open"), default=True)
     closes_on = models.DateField(_("Closing date"), null=True, blank=True, default=end_of_month)
     monthly_limit = models.PositiveSmallIntegerField(_("Monthly limit"), null=True, blank=True, default=None)

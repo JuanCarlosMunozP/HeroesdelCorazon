@@ -84,7 +84,7 @@ function EvaluationDetails({ evaluation }) {
                             {answers.map((answer) => (
                               <li key={answer.criterion} className="flex flex-wrap justify-between gap-2">
                                 <span>{criterionNames[answer.criterion] ?? answer.criterion}</span>
-                                <span className="font-medium text-app">{SCORE_LABELS[answer.score]} ({answer.score})</span>
+                                <span className="font-medium text-app">{evaluation.rating_type === 'descriptive' ? SCORE_LABELS[answer.score] : answer.score}</span>
                               </li>
                             ))}
                           </ul>
