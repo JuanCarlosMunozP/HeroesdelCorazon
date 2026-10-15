@@ -1,6 +1,7 @@
 import { cn } from '../lib/cn'
 
 const SCORES = [1, 2, 3, 4, 5]
+const SCORE_LABELS = { 1: 'Malo', 2: 'Regular', 3: 'Bueno', 4: 'Muy bueno', 5: 'Excelente' }
 
 // Tabla de calificación: categoría (agrupada) | criterio | 1 2 3 4 5. La nota elegida se marca con una X.
 // Solo en la vista de revisión del jefe: la última columna muestra el promedio de cada categoría. Al colaborador no se le muestra mientras califica.
@@ -22,6 +23,7 @@ const HEAD = `${CELL} bg-app-muted font-semibold`
 export function ScoreTable({ categories, scores = {}, onChange, name = 'scores', editor }) {
   const readOnly = !onChange
   const showAverage = readOnly && !editor
+  const showDescriptions = Boolean(onChange) && !editor
 
   return (
     <div className="mt-3 overflow-x-auto">
@@ -30,7 +32,12 @@ export function ScoreTable({ categories, scores = {}, onChange, name = 'scores',
           <tr>
             <th className={HEAD}>Categoría</th>
             <th className={HEAD}>Criterio</th>
-            {SCORES.map((n) => <th key={n} className={cn(HEAD, 'w-12 text-center')}>{n}</th>)}
+            {SCORES.map((n) => (
+              <th key={n} className={cn(HEAD, showDescriptions ? 'w-16 min-w-16 text-center' : 'w-12 text-center')}>
+                <span className="block">{n}</span>
+                {showDescriptions && <span className="block text-[10px] font-normal leading-tight">{SCORE_LABELS[n]}</span>}
+              </th>
+            ))}
             {showAverage && <th className={cn(HEAD, 'w-28 text-center')}>Promedio por categoría</th>}
             {editor && <th className={cn(HEAD, 'w-32')}>Acciones</th>}
           </tr>
@@ -71,7 +78,7 @@ export function ScoreTable({ categories, scores = {}, onChange, name = 'scores',
                                 checked && 'bg-primary/10',
                                 readOnly ? 'cursor-default' : 'cursor-pointer hover:bg-primary/10',
                               )}
-                              title={`Nota ${n}`}
+                              title={`Nota ${n}: ${SCORE_LABELS[n]}`}
                             >
                               <input
                                 type="radio"
@@ -80,7 +87,7 @@ export function ScoreTable({ categories, scores = {}, onChange, name = 'scores',
                                 checked={checked}
                                 disabled={readOnly}
                                 onChange={() => onChange(row.criterion.code, n)}
-                                aria-label={`${row.criterion.name} — nota ${n}`}
+                                aria-label={`${row.criterion.name} — ${SCORE_LABELS[n]} (${n})`}
                               />
                               <span>{checked ? 'X' : ''}</span>
                             </label>

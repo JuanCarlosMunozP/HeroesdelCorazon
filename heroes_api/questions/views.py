@@ -133,6 +133,11 @@ class SubmissionsView(APIView):
 
     def get(self, request):
         qs = Question.objects.all()
+        raw_evaluation = request.query_params.get("evaluation")
+        if raw_evaluation:
+            if not raw_evaluation.isdigit():
+                return _bad("evaluation", _("Choose an evaluation."))
+            qs = qs.filter(evaluation_id=raw_evaluation)
         if request.user.area:
             qs = qs.filter(personal__area=request.user.area)
         return Response(_grouped(qs))
