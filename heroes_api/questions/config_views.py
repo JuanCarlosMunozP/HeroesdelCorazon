@@ -74,16 +74,6 @@ def _evaluation_data(evaluation):
     }
 
 
-def _locked(evaluation):
-    """Error response when `evaluation` already has answers: its form is fixed, new questions go to a new evaluation."""
-    if not evaluation.questions.exists():
-        return None
-    return Response(
-        {"detail": _("This evaluation already has answers: create a new evaluation to add categories or questions.")},
-        status=status.HTTP_400_BAD_REQUEST,
-    )
-
-
 def _evaluation_of(raw):
     return Evaluation.objects.filter(pk=raw).first() if str(raw or "").isdigit() else None
 
@@ -92,13 +82,12 @@ def _bad(field, message):
     return Response({field: [message]}, status=status.HTTP_400_BAD_REQUEST)
 
 
-def _apply_changes(obj, data, evaluation):
+def _apply_changes(obj, data):
     """Applies the optional `name` / `is_active` of a PATCH. Returns an error response or None.
 
-    Turning a category/question ON adds it to the form, and the form is fixed once the evaluation has answers.
+    Turning a category/question ON adds it to the form. Categories and questions may be added at any point;
+    submitted answers keep the values they had when they were sent.
     """
-    if data.get("is_active") and (locked := _locked(evaluation)):
-        return locked
     if "name" in data:
         name = _clean(data["name"])
         if not name:
@@ -112,7 +101,8 @@ def _apply_changes(obj, data, evaluation):
 
 class EvaluationsView(APIView):
     """GET: the evaluations (the boss sees every one; a collaborator only the open ones).
-    POST (boss): creates a new, empty and independent evaluation: {"name": "..."}."""
+    POST (boss): creates an independent evaluation and its categories/questions: {"name": "...", "categories": [...]}.
+    The categories field is optional for compatibility with clients that create them separately."""
 
     permission_classes = [IsAuthenticated]
 
@@ -122,13 +112,43 @@ class EvaluationsView(APIView):
             evaluations = evaluations.available()
         return Response([_evaluation_data(e) for e in evaluations])
 
+    @transaction.atomic
     def post(self, request):
         if request.user.role != User.Role.BOSS:
             return Response(status=status.HTTP_403_FORBIDDEN)
         name = _clean(request.data.get("name"))
         if not name:
             return _bad("name", _("Enter a name."))
+        categories = request.data.get("categories", [])
+        if not isinstance(categories, list):
+            return _bad("categories", _("Enter a list of categories."))
+        cleaned = []
+        for item in categories:
+            if not isinstance(item, dict):
+                return _bad("categories", _("Each category must have a name and questions."))
+            category_name = _clean(item.get("name"))
+            raw = item.get("criteria")
+            questions = [_clean(q) for q in raw] if isinstance(raw, list) else []
+            questions = [q for q in questions if q]
+            if not category_name or not questions:
+                return _bad("categories", _("Each category needs a name and at least one question."))
+            cleaned.append((category_name, questions))
+
         evaluation = Evaluation.objects.create(name=name)  # closes at the end of this month, automatically
+        for category_name, questions in cleaned:
+            category = Category.objects.create(
+                evaluation=evaluation,
+                name=category_name,
+                code=_unique(Category, "code", category_name, 50),
+                order=_next_order(Category, evaluation=evaluation),
+            )
+            for number, text in enumerate(questions, start=1):
+                Criterion.objects.create(
+                    category=category,
+                    name=text,
+                    order=number,
+                    code=_unique(Criterion, "code", text, 50),
+                )
         return Response(_evaluation_data(evaluation), status=status.HTTP_201_CREATED)
 
 
@@ -185,8 +205,6 @@ class CategoriesView(APIView):
         evaluation = _evaluation_of(request.data.get("evaluation"))
         if evaluation is None:
             return _bad("evaluation", _("Choose an evaluation."))
-        if locked := _locked(evaluation):
-            return locked
         name = _clean(request.data.get("name"))
         raw = request.data.get("criteria")
         questions = [_clean(q) for q in raw] if isinstance(raw, list) else []
@@ -218,7 +236,7 @@ class CategoryDetailView(APIView):
         category = Category.objects.filter(pk=pk).first()
         if category is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return _apply_changes(category, request.data, category.evaluation) or Response(_listing(category.evaluation))
+        return _apply_changes(category, request.data) or Response(_listing(category.evaluation))
 
     @transaction.atomic
     def delete(self, request, pk):
@@ -245,8 +263,6 @@ class CategoryCriteriaView(APIView):
         category = Category.objects.filter(pk=pk).first()
         if category is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        if locked := _locked(category.evaluation):
-            return locked
         text = _clean(request.data.get("name"))
         if not text:
             return _bad("name", _("Enter a name."))
@@ -268,7 +284,7 @@ class CriterionDetailView(APIView):
         criterion = Criterion.objects.filter(pk=pk).first()
         if criterion is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return _apply_changes(criterion, request.data, criterion.category.evaluation) or Response(_listing(criterion.category.evaluation))
+        return _apply_changes(criterion, request.data) or Response(_listing(criterion.category.evaluation))
 
     def delete(self, request, pk):
         criterion = Criterion.objects.filter(pk=pk).first()

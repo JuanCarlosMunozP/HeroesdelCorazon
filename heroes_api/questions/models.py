@@ -30,6 +30,7 @@ class Evaluation(models.Model):
     name = models.CharField(_("Name"), max_length=150)
     is_open = models.BooleanField(_("Open"), default=True)
     closes_on = models.DateField(_("Closing date"), null=True, blank=True, default=end_of_month)
+    monthly_limit = models.PositiveSmallIntegerField(_("Monthly limit"), null=True, blank=True, default=None)
     created_at = models.DateTimeField(_("Created"), auto_now_add=True)
 
     objects = EvaluationQuerySet.as_manager()

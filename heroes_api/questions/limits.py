@@ -3,8 +3,10 @@ from django.utils import timezone
 from .models import Evaluation, EvaluationSetting, Question
 
 
-def monthly_limit():
-    """How many colleagues a collaborator can score per calendar month (the boss sets it)."""
+def monthly_limit(evaluation=None):
+    """How many colleagues a collaborator can score per month in this evaluation."""
+    if evaluation is not None and evaluation.monthly_limit is not None:
+        return min(evaluation.monthly_limit, EvaluationSetting.MAX_MONTHLY_LIMIT)
     return min(EvaluationSetting.current().monthly_limit, EvaluationSetting.MAX_MONTHLY_LIMIT)
 
 

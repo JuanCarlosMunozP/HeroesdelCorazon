@@ -62,7 +62,7 @@ class QuestionCreateSerializer(serializers.Serializer):
         done = scored_this_month(collaborator, evaluation)
         if attrs["personal"].pk in done:
             raise serializers.ValidationError({"personal": _("You already scored this colleague this month.")})
-        if len(done) >= monthly_limit():
+        if len(done) >= monthly_limit(evaluation):
             raise serializers.ValidationError({"personal": _("You reached the monthly limit of colleagues to score.")})
         return attrs
 

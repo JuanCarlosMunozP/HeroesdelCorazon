@@ -20,6 +20,10 @@ def _avg(value):
     return round(value, 1) if value is not None else None
 
 
+def _bad(field, message):
+    return Response({field: [message]}, status=status.HTTP_400_BAD_REQUEST)
+
+
 def _approved():
     return Question.objects.filter(reviewed_at__isnull=False)
 
@@ -278,14 +282,25 @@ class StatsView(APIView):
 
 
 class SettingsView(APIView):
-    """Boss: reads and sets how many colleagues each collaborator can score per month."""
+    """Boss: reads and sets a monthly colleague limit globally or for one evaluation."""
 
     permission_classes = [IsBoss]
 
     def get(self, request):
-        return Response({"monthly_limit": monthly_limit()})
+        raw = request.query_params.get("evaluation")
+        evaluation = Evaluation.objects.filter(pk=raw).first() if raw and raw.isdigit() else None
+        if raw and evaluation is None:
+            return _bad("evaluation", _("Choose an evaluation."))
+        data = {"monthly_limit": monthly_limit(evaluation)}
+        if evaluation:
+            data["evaluation"] = evaluation.pk
+        return Response(data)
 
     def put(self, request):
+        raw = request.data.get("evaluation", request.query_params.get("evaluation"))
+        evaluation = Evaluation.objects.filter(pk=raw).first() if raw and str(raw).isdigit() else None
+        if raw and evaluation is None:
+            return _bad("evaluation", _("Choose an evaluation."))
         try:
             value = int(request.data.get("monthly_limit"))
         except (TypeError, ValueError):
@@ -295,10 +310,17 @@ class SettingsView(APIView):
                 {"monthly_limit": [_("Enter a whole number between 1 and %(max)s.") % {"max": EvaluationSetting.MAX_MONTHLY_LIMIT}]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        setting = EvaluationSetting.current()
-        setting.monthly_limit = value
-        setting.save(update_fields=["monthly_limit"])
-        return Response({"monthly_limit": value})
+        if evaluation:
+            evaluation.monthly_limit = value
+            evaluation.save(update_fields=["monthly_limit"])
+        else:
+            setting = EvaluationSetting.current()
+            setting.monthly_limit = value
+            setting.save(update_fields=["monthly_limit"])
+        data = {"monthly_limit": value}
+        if evaluation:
+            data["evaluation"] = evaluation.pk
+        return Response(data)
 
 
 class QuotaView(APIView):
@@ -312,7 +334,7 @@ class QuotaView(APIView):
         done = scored_this_month(request.user, evaluation) if evaluation else set()
         return Response({
             "evaluation": evaluation.pk if evaluation else None,
-            "limit": monthly_limit(),
+            "limit": monthly_limit(evaluation),
             "used": len(done),
             "personal": sorted(done),
         })
