@@ -1,0 +1,71 @@
+name: heroes_api
+
+# Development (run from this folder): docker compose up --build
+#   API     http://localhost:${API_PORT:-8000}          (admin at /admin/)
+#   Mailpit http://localhost:${MAILPIT_UI_PORT:-8025}   (password recovery emails)
+# If those ports are busy, set API_PORT / MAILPIT_UI_PORT. The database is only reachable as host `db`.
+# The frontend runs separately (npm run dev in heroes_front/) and proxies /api to :8000.
+#
+# Sample data (fictitious):
+#   docker compose exec heroes_api python manage.py import_questions data/questions_sample.csv
+services:
+  db:
+    container_name: heroes_db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-HeroesDelCorazon}
+      POSTGRES_USER: ${POSTGRES_USER:-heroes_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-heroes_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    container_name: heroes_mailpit
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+  heroes_api:
+    container_name: heroes_api
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        REQUIREMENTS: dev
+    restart: unless-stopped
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-secret-key-not-for-production-use}
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,heroes_api
+      POSTGRES_DB: ${POSTGRES_DB:-HeroesDelCorazon}
+      POSTGRES_USER: ${POSTGRES_USER:-heroes_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-heroes_pass}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: "1025"
+      EMAIL_USE_TLS: "False"
+      DEFAULT_FROM_EMAIL: "Heroes del Corazon <noreply@heroescorazon.local>"
+      FRONTEND_BASE_URL: http://localhost:5173
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    volumes:
+      - .:/app
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+volumes:
+  postgres_data:
