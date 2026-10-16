@@ -18,7 +18,7 @@ from common.permissions import IsBoss
 from users.models import User
 
 from .models import Category, Criterion, Evaluation, Question
-from .staff_import import AnswersFileError, import_answers, read_table
+from .staff_import import AnswersFileError, import_evaluations, read_table
 
 
 def _unique(model, field, base, limit):
@@ -93,9 +93,6 @@ def _apply_changes(obj, data):
         name = _clean(data["name"])
         if not name:
             return _bad("name", _("Enter a name."))
-        rating_type = request.data.get("rating_type", Evaluation.RatingType.QUANTITATIVE)
-        if rating_type not in Evaluation.RatingType.values:
-            return _bad("rating_type", _("Choose quantitative or descriptive ratings."))
         obj.name = name
     if "is_active" in data:
         obj.is_active = bool(data["is_active"])
@@ -309,11 +306,10 @@ class CriterionDetailView(APIView):
         return Response(_listing(evaluation))
 
 
-class AnswersImportView(APIView):
-    """Boss: uploads an Excel (.xlsx) or CSV with answers (see questions/staff_import.py for the columns).
+class EvaluationImportView(APIView):
+    """Boss: imports evaluation forms from rows of evaluation, category and question names.
 
-    Optional form field `evaluation` (id): the evaluation of the rows that do not say which one they belong to.
-    Pairs that already have answers in their evaluation are skipped, never duplicated.
+    Repeated rows form one evaluation with multiple categories/questions. Existing evaluations are skipped.
     """
 
     permission_classes = [IsBoss]
@@ -323,15 +319,10 @@ class AnswersImportView(APIView):
         file = request.FILES.get("file")
         if file is None:
             return _bad("file", _("Attach an Excel (.xlsx) or CSV file."))
-        default = None
-        if request.data.get("evaluation"):
-            default = _evaluation_of(request.data.get("evaluation"))
-            if default is None:
-                return _bad("evaluation", _("Choose an evaluation."))
         try:
             table = read_table(file, file.name)
             with transaction.atomic():
-                result = import_answers(table, default)
+                result = import_evaluations(table)
         except AnswersFileError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(result)

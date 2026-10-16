@@ -6,27 +6,29 @@ import { ALERT_ERROR, PAGE_SUBTITLE, PAGE_TITLE } from '../components/ui/styles'
 import { api, errorMessage } from '../lib/api'
 import { useEvaluationForms } from '../lib/useEvaluationForms'
 
-export function ReviewPagination({count,start,end,page,totalPages,loading,setPage}) {
+const PAGE_SIZE = 10
+
+export function ReviewPagination({ count, start, end, page, totalPages, loading, setPage }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-app px-4 py-3 text-app-muted">
-      <p>
-        {count === 0} 
-          ? "Sin resultados"
-          : ``Mostrando ${start}-${end} de ${count}``
-      </p>
-      <div className="flex-items-center gap-1">
+      <p>{count === 0 ? 'Sin resultados' : `Mostrando ${start}-${end} de ${count}`}</p>
+      <div className="flex items-center gap-2">
         <button
+          type="button"
+          className="rounded-md border border-app px-3 py-1.5 text-sm text-app disabled:opacity-50"
         disabled={page <= 1 || loading}
-        onClick={() => setPage((p) => Math.max(1,p -1))}
+          onClick={() => setPage((current) => Math.max(1, current - 1))}
         >
           Anterior
         </button>
         <span className="px-2 text-app">
           {page} / {totalPages}
         </span>
-        <button 
-        disable={page >= totalPages || loading}
-        onClick={() => setPage((p) => Math.min(totalPages, p +1))}
+        <button
+          type="button"
+          className="rounded-md border border-app px-3 py-1.5 text-sm text-app disabled:opacity-50"
+          disabled={page >= totalPages || loading}
+          onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
         >
           Siguiente
         </button>
@@ -39,6 +41,7 @@ export function ReviewPagination({count,start,end,page,totalPages,loading,setPag
 export function ReviewPage() {
   const [submissions, setSubmissions] = useState(null)
   const [error, setError] = useState(null)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     api('/questions/submissions/')
@@ -47,6 +50,11 @@ export function ReviewPage() {
   }, [])
 
   const forms = useEvaluationForms(submissions)
+  const count = submissions?.length ?? 0
+  const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE))
+  const start = count === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const end = Math.min(page * PAGE_SIZE, count)
+  const pageSubmissions = (submissions || []).slice(start - (count ? 1 : 0), end)
 
   const keyOf = (item) => `${item.evaluation}:${item.collaborator}:${item.personal}:${item.created_at}`
 
@@ -61,7 +69,7 @@ export function ReviewPage() {
       {!submissions && !error && <p className="text-sm text-app-muted">Cargando...</p>}
       {submissions && submissions.length === 0 && <Card className="text-app-muted">Aún no hay evaluaciones enviadas.</Card>}
 
-      {(submissions || []).map((item) => (
+      {pageSubmissions.map((item) => (
         <Card key={keyOf(item)} className="border-l-4 border-l-primary shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -82,14 +90,17 @@ export function ReviewPage() {
           />
         </Card>
       ))}
-      <ReviewPagination
-      count={count}
-      start={start}
-      end={end}
-      page={page}
-      loading={loading}
-      setPage={setPage}
-      />
+      {submissions?.length > PAGE_SIZE && (
+        <ReviewPagination
+          count={count}
+          start={start}
+          end={end}
+          page={page}
+          totalPages={totalPages}
+          loading={!submissions && !error}
+          setPage={setPage}
+        />
+      )}
     </div>
   )
 }

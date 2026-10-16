@@ -6,8 +6,8 @@ name: heroes_api
 # If those ports are busy, set API_PORT / MAILPIT_UI_PORT. The database is only reachable as host `db`.
 # The frontend runs separately (npm run dev in heroes_front/) and proxies /api to :8000.
 #
-# Sample data (fictitious):
-#   docker compose exec heroes_api python manage.py import_questions data/questions_sample.csv
+# Import evaluation forms (CSV/XLSX columns: evaluation, category, question):
+#   docker compose exec heroes_api python manage.py import_questions data/evaluations.xlsx
 services:
   db:
     container_name: heroes_db

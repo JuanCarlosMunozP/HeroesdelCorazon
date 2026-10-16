@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .config_views import (
-    AnswersImportView,
+    EvaluationImportView,
     CategoriesView,
     CategoryCriteriaView,
     CategoryDetailView,
@@ -24,7 +24,7 @@ from .views import (
 )
 
 urlpatterns = [
-    path("questions/import/", AnswersImportView.as_view(), name="question-import"),
+    path("questions/import/", EvaluationImportView.as_view(), name="question-import"),
     path("questions/evaluations/", EvaluationsView.as_view(), name="question-evaluations"),
     path("questions/evaluations/<int:pk>/", EvaluationDetailView.as_view(), name="question-evaluation"),
     path("questions/categories/", CategoriesView.as_view(), name="question-categories"),

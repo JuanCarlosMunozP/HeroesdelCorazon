@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { ALERT_ERROR, FIELD, LABEL, PAGE_TITLE } from '../components/ui/styles'
 import { api, errorMessage } from '../lib/api'
 
 // Tarjeta para subir un archivo y mostrar el resultado de la carga. `children` son campos extra del formulario.
-function UploadCard({ title, hint, accept, path, extra = {}, unit, children }) {
+function UploadCard({ title, hint, accept, path, extra = {}, unit, submitLabel, children }) {
   const input = useRef(null)
+  const inputId = useId()
   const [file, setFile] = useState(null)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
@@ -31,6 +32,11 @@ function UploadCard({ title, hint, accept, path, extra = {}, unit, children }) {
     }
   }
 
+  function clearFile() {
+    setFile(null)
+    if (input.current) input.current.value = ''
+  }
+
   return (
     <Card>
       <form onSubmit={submit} className="space-y-4">
@@ -39,18 +45,40 @@ function UploadCard({ title, hint, accept, path, extra = {}, unit, children }) {
           <p className="mt-0.5 text-sm text-app-muted">{hint}</p>
         </div>
         {children}
-        <label className={LABEL}>
-          Archivo
-          <input
-            ref={input}
-            className={`${FIELD} cursor-pointer file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-dark`}
-            type="file"
-            accept={accept}
-            onChange={(e) => setFile(e.target.files[0] || null)}
-          />
-        </label>
+        <div className={LABEL}>
+          <span>Archivo</span>
+          <div className={`${FIELD} flex items-center gap-3`}>
+            <input
+              ref={input}
+              id={inputId}
+              className="sr-only peer"
+              type="file"
+              accept={accept}
+              onChange={(e) => setFile(e.target.files[0] || null)}
+            />
+            <label
+              htmlFor={inputId}
+              className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary"
+            >
+              Elegir archivo
+            </label>
+            <span className="min-w-0 flex-1 truncate text-app-muted">
+              {file?.name || 'No se ha seleccionado ningún archivo'}
+            </span>
+            {file && (
+              <button
+                type="button"
+                className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-app-muted hover:bg-app/5 hover:text-app focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                onClick={clearFile}
+                aria-label={`Quitar archivo ${file.name}`}
+              >
+                Quitar
+              </button>
+            )}
+          </div>
+        </div>
         <div className="flex justify-end">
-          <Button type="submit" disabled={!file || busy}>{busy ? 'Cargando...' : 'Cargar'}</Button>
+          <Button type="submit" disabled={!file || busy}>{busy ? 'Guardando...' : submitLabel}</Button>
         </div>
 
         {error && <div role="alert" className={ALERT_ERROR}>{error}</div>}
@@ -58,7 +86,11 @@ function UploadCard({ title, hint, accept, path, extra = {}, unit, children }) {
         {result && (
           <div className="space-y-1 text-sm text-app">
             <h4 className="text-sm font-semibold">Resultado de la carga</h4>
+            {result.evaluations_created?.length > 0 && (
+              <p>Nombres creados: {result.evaluations_created.join(', ')}</p>
+            )}
             <p>{unit} creados: <strong>{result.created}</strong></p>
+            {result.criteria_created != null && <p>Preguntas creadas: <strong>{result.criteria_created}</strong></p>}
             <p>
               Ya existían (no se duplicaron): <strong>{result.skipped}</strong>
               {result.skipped_documents?.length > 0 && <span className="text-app-muted"> — {result.skipped_documents.join(', ')}</span>}
@@ -79,21 +111,13 @@ function UploadCard({ title, hint, accept, path, extra = {}, unit, children }) {
 }
 
 export function StaffImportPage() {
-  const [evaluations, setEvaluations] = useState([])
-  const [evaluation, setEvaluation] = useState('')
-
-  useEffect(() => {
-    api('/questions/evaluations/')
-      .then(setEvaluations)
-      .catch(() => setEvaluations([]))
-  }, [])
-
   return (
     <div className="space-y-6">
       <h1 className={PAGE_TITLE}>Cargar datos</h1>
 
       <UploadCard
         title="Cargar personal"
+        submitLabel="Guardar personal"
         accept=".xlsx"
         path="/users/import/"
         unit="Personas"
@@ -101,23 +125,13 @@ export function StaffImportPage() {
       />
 
       <UploadCard
-        title="Cargar respuestas de evaluaciones"
+        title="Cargar evaluaciones"
+        submitLabel="Guardar evaluaciones"
         accept=".xlsx,.csv"
         path="/questions/import/"
-        extra={{ evaluation }}
         unit="Evaluaciones"
-        hint="Excel (.xlsx) o CSV con una fila por colaborador y compañero evaluado. Columnas: evaluation (id o nombre), collaborator y personal (número de documento) y una columna por cada pregunta de esa evaluación, con una nota de 1 a 5. Si un colaborador ya evaluó a esa persona en esa evaluación, la fila se omite."
-      >
-        <label className={`${LABEL} max-w-sm`}>
-          Evaluación por defecto (para las filas sin evaluación)
-          <select className={FIELD} value={evaluation} onChange={(e) => setEvaluation(e.target.value)}>
-            <option value="">Ninguna</option>
-            {evaluations.map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </select>
-        </label>
-      </UploadCard>
+        hint="Excel (.xlsx) o CSV con una fila por pregunta y estas columnas: evaluation (nombre), category (categoría) y question (texto de la pregunta). Repite el nombre de evaluación y la categoría en las filas que correspondan. Puedes cargar varias evaluaciones en un archivo; las que ya existan se omiten."
+      />
     </div>
   )
 }
