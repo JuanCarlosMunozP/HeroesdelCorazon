@@ -2,14 +2,14 @@
 # Atajo de Docker para PowerShell: corre en la misma terminal de VS Code, sin abrir otra ventana.
 # Se usa desde la raíz del proyecto:   .\heroes.ps1 <comando>
 #
-# Sustituye a:   cd heroes_api
-#                docker compose exec heroes_api python manage.py shell
+# Sustituye a:   cd backend
+#                docker compose exec backend python manage.py shell
 # (desde la raíz, el comando a mano falla con "no configuration file provided" porque el
-#  docker-compose.yml está dentro de heroes_api; el script entra a esa carpeta solo.)
+#  docker-compose.yml está dentro de backend; el script entra a esa carpeta solo.)
 #
-# Los contenedores deben estar encendidos:  .\heroes.ps1 up   (con ps se ve si heroes_api está "Up")
+# Los contenedores deben estar encendidos:  .\heroes.ps1 up   (con ps se ve si backend está "Up")
 #
-#   shell                    shell de Django                 (docker compose exec heroes_api python manage.py shell)
+#   shell                    shell de Django                 (docker compose exec backend python manage.py shell)
 #   bash                     terminal dentro del contenedor, en /app (salir: exit)
 #   dbshell                  consola de PostgreSQL
 #   migrate                  aplica las migraciones pendientes
@@ -29,10 +29,10 @@ $Command = if ($args.Count -gt 0) { [string]$args[0] } else { 'help' }
 $Rest = if ($args.Count -gt 1) { [string[]]$args[1..($args.Count - 1)] } else { @() }
 
 $ErrorActionPreference = 'Stop'
-$Service = 'heroes_api'
-$ApiDir = Join-Path $PSScriptRoot 'heroes_api'
+$Service = 'backend'
+$ApiDir = Join-Path $PSScriptRoot 'backend'
 
-# docker compose se ejecuta dentro de heroes_api: ahí están el docker-compose.yml y su .env.
+# docker compose se ejecuta dentro de backend: ahí están el docker-compose.yml y su .env.
 function Compose {
     Push-Location $ApiDir
     try { & docker compose @args } finally { Pop-Location }
@@ -65,7 +65,7 @@ Django
   manage ...      cualquier comando de manage.py (ej: .\heroes.ps1 manage showmigrations)
 
 Frontend
-  front           arranca el frontend (npm run dev) en heroes_front
+  front           arranca el frontend (npm run dev) en frontend
 '@
 }
 
@@ -86,7 +86,7 @@ switch ($Command) {
     'lint'             { Run ruff check . @Rest }
     'check'            { Manage check }
     'manage'           { Manage @Rest }
-    'front'            { Push-Location (Join-Path $PSScriptRoot 'heroes_front'); try { npm run dev } finally { Pop-Location } }
+    'front'            { Push-Location (Join-Path $PSScriptRoot 'frontend'); try { npm run dev } finally { Pop-Location } }
     { $_ -in 'help', '-h', '--help' } { Show-Help }
     default {
         Write-Error "Comando desconocido: $Command"

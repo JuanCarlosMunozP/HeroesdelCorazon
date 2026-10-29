@@ -8,10 +8,10 @@ Este documento describe la solución para desarrollo y mantenimiento. Los requis
 
 | Directorio | Tecnología | Responsabilidad |
 | --- | --- | --- |
-| `heroes_front/` | React, Vite, Tailwind CSS | Interfaz de usuario y sesión web. |
-| `heroes_api/` | Django 5, Django REST Framework | API, autenticación, reglas del dominio y administración. |
-| `heroes_api/users/` | Aplicación Django | Usuarios, roles y carga de personal. |
-| `heroes_api/questions/` | Aplicación Django | Evaluaciones, categorías, preguntas, respuestas y reportes. |
+| `frontend/` | React, Vite, Tailwind CSS | Interfaz de usuario y sesión web. |
+| `backend/` | Django 5, Django REST Framework | API, autenticación, reglas del dominio y administración. |
+| `backend/users/` | Aplicación Django | Usuarios, roles y carga de personal. |
+| `backend/questions/` | Aplicación Django | Evaluaciones, categorías, preguntas, respuestas y reportes. |
 | PostgreSQL | PostgreSQL 16 | Persistencia. En Docker Compose usa el volumen `postgres_data`. |
 
 En desarrollo, Vite sirve el frontend en `http://localhost:5173` y reenvía `/api` al backend. La API local se publica en `http://localhost:8000` (o el puerto indicado por `API_PORT`).
@@ -26,11 +26,11 @@ El backend corre dentro de Docker en el flujo recomendado; no es necesario insta
 
 ## Inicio en desarrollo
 
-1. Copiar `heroes_api/.env.example` a `heroes_api/.env` si se necesitan valores locales personalizados. Compose tiene valores de desarrollo predeterminados; nunca reutilizar esos valores en producción.
+1. Copiar `backend/.env.example` a `backend/.env` si se necesitan valores locales personalizados. Compose tiene valores de desarrollo predeterminados; nunca reutilizar esos valores en producción.
 2. Iniciar API, base de datos y Mailpit:
 
    ```powershell
-   cd heroes_api
+   cd backend
    docker compose up --build
    ```
 
@@ -39,24 +39,24 @@ El backend corre dentro de Docker en el flujo recomendado; no es necesario insta
 3. En otra terminal, iniciar el frontend:
 
    ```powershell
-   cd heroes_front
+   cd frontend
    npm install
    npm run dev
    ```
 
 4. Abrir `http://localhost:5173`. La administración Django está en `http://localhost:8000/admin/`.
 
-Si los puertos están ocupados, establecer `API_PORT` y/o `MAILPIT_UI_PORT` en `heroes_api/.env`. El frontend usa `VITE_API_URL` para el destino del proxy; el valor de ejemplo es `http://localhost:8011`, así que en el flujo estándar debe dejarse sin definir o cambiarse a `http://localhost:8000`.
+Si los puertos están ocupados, establecer `API_PORT` y/o `MAILPIT_UI_PORT` en `backend/.env`. El frontend usa `VITE_API_URL` para el destino del proxy; el valor de ejemplo es `http://localhost:8011`, así que en el flujo estándar debe dejarse sin definir o cambiarse a `http://localhost:8000`.
 
 Para crear una cuenta administrativa local:
 
 ```powershell
-docker compose exec heroes_api python manage.py createsuperuser
+docker compose exec backend python manage.py createsuperuser
 ```
 
 ## Configuración
 
-Los ejemplos de variables están en `heroes_api/.env.example` y `heroes_front/.env.example`.
+Los ejemplos de variables están en `backend/.env.example` y `frontend/.env.example`.
 
 Variables importantes del backend:
 
@@ -72,13 +72,13 @@ No versionar archivos `.env`, claves, credenciales, copias de bases de datos ni 
 
 ## Estructura del backend
 
-- `heroes_api/config/settings/base.py`: configuración común, PostgreSQL, DRF, JWT, seguridad y zona horaria `America/Bogota`.
-- `heroes_api/config/settings/dev.py` y `prod.py`: ajustes por ambiente.
-- `heroes_api/config/urls.py`: prefijo `/api/v1/` y administración Django.
-- `heroes_api/users/models.py`: usuario personalizado. El nombre de usuario corresponde al número de documento; los roles principales son `boss` y `collaborator`.
-- `heroes_api/questions/models.py`: `Evaluation` es un formulario; cada formulario contiene `Category` y `Criterion`. `Question` guarda las calificaciones asociadas a colaborador, persona evaluada y formulario.
-- `heroes_api/*/migrations/`: historial versionado del esquema. Cambios a modelos deben ir acompañados de migraciones.
-- `heroes_api/common/`: autenticación, permisos y paginación compartidos.
+- `backend/config/settings/base.py`: configuración común, PostgreSQL, DRF, JWT, seguridad y zona horaria `America/Bogota`.
+- `backend/config/settings/dev.py` y `prod.py`: ajustes por ambiente.
+- `backend/config/urls.py`: prefijo `/api/v1/` y administración Django.
+- `backend/users/models.py`: usuario personalizado. El nombre de usuario corresponde al número de documento; los roles principales son `boss` y `collaborator`.
+- `backend/questions/models.py`: `Evaluation` es un formulario; cada formulario contiene `Category` y `Criterion`. `Question` guarda las calificaciones asociadas a colaborador, persona evaluada y formulario.
+- `backend/*/migrations/`: historial versionado del esquema. Cambios a modelos deben ir acompañados de migraciones.
+- `backend/common/`: autenticación, permisos y paginación compartidos.
 
 La API está montada bajo `/api/v1/`. Entre las rutas principales están:
 
@@ -92,13 +92,13 @@ La API está montada bajo `/api/v1/`. Entre las rutas principales están:
 | `/questions/`, `/questions/sent/`, `/questions/submissions/` | Diligenciamiento y seguimiento de respuestas. |
 | `/questions/results/`, `/questions/results-summary/`, `/questions/dashboard/`, `/questions/stats/` | Consulta de resultados e indicadores. |
 
-El detalle de métodos, permisos y formatos de respuesta está en las vistas, serializadores y rutas de `heroes_api/users/` y `heroes_api/questions/`. La especificación OpenAPI se configura con `drf-spectacular`.
+El detalle de métodos, permisos y formatos de respuesta está en las vistas, serializadores y rutas de `backend/users/` y `backend/questions/`. La especificación OpenAPI se configura con `drf-spectacular`.
 
 ## Cargas de archivos
 
 ### Personal
 
-La pantalla de staff acepta Excel `.xlsx`. El importador está en `heroes_api/users/staff_import.py`. El encabezado debe incluir documento, nombres, área y cargo; apellidos son opcionales. Los documentos duplicados se omiten, no se actualizan. La contraseña inicial se establece con el número de documento, por lo que las cuentas deben cambiarla según las políticas operativas del entorno.
+La pantalla de staff acepta Excel `.xlsx`. El importador está en `backend/users/staff_import.py`. El encabezado debe incluir documento, nombres, área y cargo; apellidos son opcionales. Los documentos duplicados se omiten, no se actualizan. La contraseña inicial se establece con el número de documento, por lo que las cuentas deben cambiarla según las políticas operativas del entorno.
 
 ### Formularios de evaluación
 
@@ -107,28 +107,28 @@ La pantalla de staff acepta Excel `.xlsx` o CSV. Una fila representa una pregunt
 También se pueden crear formularios desde la consola del backend:
 
 ```powershell
-docker compose exec heroes_api python manage.py import_questions data/evaluations.xlsx
+docker compose exec backend python manage.py import_questions data/evaluations.xlsx
 ```
 
-El comando admite `.xlsx` y `.csv`. El archivo debe estar en el contenedor (por ejemplo, bajo `heroes_api/data/`, que está montado como `/app/data`). La lógica compartida está en `heroes_api/questions/staff_import.py` y el comando en `heroes_api/questions/management/commands/import_questions.py`.
+El comando admite `.xlsx` y `.csv`. El archivo debe estar en el contenedor (por ejemplo, bajo `backend/data/`, que está montado como `/app/data`). La lógica compartida está en `backend/questions/staff_import.py` y el comando en `backend/questions/management/commands/import_questions.py`.
 
 ## Frontend
 
-El frontend es una SPA React con rutas en `heroes_front/src/App.jsx`. `AuthProvider` consulta `/auth/me/` al iniciar; las rutas internas se muestran dentro de `Layout`, que redirige a `/login` cuando no hay sesión. La ruta inicial lleva al dashboard para `boss` y a la pantalla de evaluación para `collaborator`. `Layout.jsx` define el menú disponible para cada rol.
+El frontend es una SPA React con rutas en `frontend/src/App.jsx`. `AuthProvider` consulta `/auth/me/` al iniciar; las rutas internas se muestran dentro de `Layout`, que redirige a `/login` cuando no hay sesión. La ruta inicial lleva al dashboard para `boss` y a la pantalla de evaluación para `collaborator`. `Layout.jsx` define el menú disponible para cada rol.
 
 ### Páginas y roles
 
 | Archivo | Ruta | Uso principal |
 | --- | --- | --- |
-| `heroes_front/src/pages/LoginPage.jsx` | `/login` | Inicio de sesión. |
-| `heroes_front/src/pages/DashboardPage.jsx` | `/` | Indicadores y promedios para jefes de área. |
-| `heroes_front/src/pages/EvaluationPage.jsx` | `/evaluations` | Selección de evaluación abierta y envío de calificaciones por colaboradores. |
-| `heroes_front/src/pages/ReviewPage.jsx` | `/review` | Revisión de evaluaciones enviadas y consulta de su detalle. |
-| `heroes_front/src/pages/ResultsPage.jsx` | `/results` | Resultados filtrables por evaluación, área y persona. |
-| `heroes_front/src/pages/FormCreatePage.jsx` | `/create` | Creación y edición de formularios, categorías y preguntas. |
-| `heroes_front/src/pages/FormProgramPage.jsx` | `/program` | Configuración del límite mensual y tipo de calificación de una evaluación. |
-| `heroes_front/src/pages/EvaluationsListPage.jsx` | `/evaluations-list` | Estado, cierre y administración de evaluaciones existentes. |
-| `heroes_front/src/pages/StaffImportPage.jsx` | `/staff` | Carga de personal y formularios desde archivos. |
+| `frontend/src/pages/LoginPage.jsx` | `/login` | Inicio de sesión. |
+| `frontend/src/pages/DashboardPage.jsx` | `/` | Indicadores y promedios para jefes de área. |
+| `frontend/src/pages/EvaluationPage.jsx` | `/evaluations` | Selección de evaluación abierta y envío de calificaciones por colaboradores. |
+| `frontend/src/pages/ReviewPage.jsx` | `/review` | Revisión de evaluaciones enviadas y consulta de su detalle. |
+| `frontend/src/pages/ResultsPage.jsx` | `/results` | Resultados filtrables por evaluación, área y persona. |
+| `frontend/src/pages/FormCreatePage.jsx` | `/create` | Creación y edición de formularios, categorías y preguntas. |
+| `frontend/src/pages/FormProgramPage.jsx` | `/program` | Configuración del límite mensual y tipo de calificación de una evaluación. |
+| `frontend/src/pages/EvaluationsListPage.jsx` | `/evaluations-list` | Estado, cierre y administración de evaluaciones existentes. |
+| `frontend/src/pages/StaffImportPage.jsx` | `/staff` | Carga de personal y formularios desde archivos. |
 
 Las rutas del menú se configuran en `components/Layout.jsx`; al agregar una pantalla, actualizar `App.jsx` y revisar también los enlaces por rol en el layout. Los componentes de interfaz reutilizables están en `components/ui/`; estilos compartidos de formularios, alertas y títulos en `components/ui/styles.js`. `components/ScoreTable.jsx` representa los criterios cuantitativos o descriptivos.
 
@@ -150,9 +150,9 @@ Las rutas del menú se configuran en `components/Layout.jsx`; al agregar una pan
 
 ### Compilación y variables
 
-`heroes_front/.env.example` contiene `VITE_API_URL`, el origen del backend usado por el proxy de Vite. Las variables `VITE_*` se incorporan al bundle y son visibles en el navegador; nunca poner secretos en ellas. En producción, el servidor web debe entregar el directorio `dist/` y reenviar `/api/` al servicio Django.
+`frontend/.env.example` contiene `VITE_API_URL`, el origen del backend usado por el proxy de Vite. Las variables `VITE_*` se incorporan al bundle y son visibles en el navegador; nunca poner secretos en ellas. En producción, el servidor web debe entregar el directorio `dist/` y reenviar `/api/` al servicio Django.
 
-Los scripts disponibles están en `heroes_front/package.json`:
+Los scripts disponibles están en `frontend/package.json`:
 
 ```powershell
 npm run dev
@@ -164,22 +164,22 @@ npm run lint
 
 El volumen Docker `postgres_data` conserva la base de datos al recrear contenedores. Eliminar ese volumen borra los datos; no usar `docker compose down -v` en un ambiente con información que deba conservarse.
 
-Operaciones comunes desde `heroes_api/`:
+Operaciones comunes desde `backend/`:
 
 ```powershell
 docker compose ps
-docker compose logs -f heroes_api
-docker compose exec heroes_api python manage.py migrate
-docker compose exec heroes_api python manage.py createsuperuser
+docker compose logs -f backend
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py createsuperuser
 ```
 
 Antes de actualizar un ambiente con datos, obtener y verificar una copia de seguridad PostgreSQL. Las migraciones se ejecutan automáticamente por `docker/entrypoint.sh` salvo que `RUN_MIGRATIONS` se desactive.
 
 ## Despliegue
 
-`heroes_api/docker-compose.prod.yml` define PostgreSQL y el backend Django/Gunicorn. Antes de levantarlo, definir las variables obligatorias indicadas en ese archivo y en `.env.example`, incluyendo `DJANGO_SECRET_KEY` de al menos 50 caracteres, contraseñas seguras, hosts permitidos, dominio del sitio y configuración SMTP. La configuración de producción fuerza `DEBUG=False`, HTTPS y cookies seguras.
+`backend/docker-compose.prod.yml` define PostgreSQL y el backend Django/Gunicorn. Antes de levantarlo, definir las variables obligatorias indicadas en ese archivo y en `.env.example`, incluyendo `DJANGO_SECRET_KEY` de al menos 50 caracteres, contraseñas seguras, hosts permitidos, dominio del sitio y configuración SMTP. La configuración de producción fuerza `DEBUG=False`, HTTPS y cookies seguras.
 
-Comando de despliegue desde `heroes_api/`:
+Comando de despliegue desde `backend/`:
 
 ```powershell
 docker compose -f docker-compose.prod.yml up -d --build
@@ -192,17 +192,17 @@ El Compose de producción no incluye el frontend: servir el `dist/` generado por
 - Cambiar modelos: editar el modelo, crear migración con `python manage.py makemigrations` y revisar el archivo generado antes de aplicarlo.
 - Añadir rutas: actualizar `urls.py`, vista y serializador correspondientes, cuidando autenticación y permisos.
 - Modificar importaciones: mantener reglas de encabezados, duplicados y validación alineadas entre la pantalla staff y el comando cuando compartan lógica.
-- Revisar seguridad de permisos en `heroes_api/common/permissions.py` y en las vistas antes de exponer nuevas acciones.
+- Revisar seguridad de permisos en `backend/common/permissions.py` y en las vistas antes de exponer nuevas acciones.
 - Mantener datos de ejemplo sintéticos y fuera de los despliegues productivos.
 
 ## Pruebas y calidad
 
-Backend: las dependencias de desarrollo incluyen `pytest` y `pytest-django`; revisar `heroes_api/users/tests.py` y `heroes_api/questions/tests.py`. Ejecutar pruebas dentro del contenedor de desarrollo cuando se requiera.
+Backend: las dependencias de desarrollo incluyen `pytest` y `pytest-django`; revisar `backend/users/tests.py` y `backend/questions/tests.py`. Ejecutar pruebas dentro del contenedor de desarrollo cuando se requiera.
 
 Frontend: `npm run lint` ejecuta ESLint y `npm run build` compila la aplicación.
 
 ## Documentos relacionados
 
 - Requisitos funcionales e historias de usuario: documento Word del proyecto.
-- Backend: `heroes_api/README.md` (si se incorpora documentación específica del API).
-- Frontend: `heroes_front/README.md`.
+- Backend: `backend/README.md` (si se incorpora documentación específica del API).
+- Frontend: `frontend/README.md`.
